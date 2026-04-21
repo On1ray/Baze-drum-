@@ -2,7 +2,7 @@ import sqlite3
 import sys
 import os
 
-DB_PATH = 'E:\Рабочий\Учеба\БД\DB\DB\store.db'
+DB_PATH = r'E:\Рабочий\Учеба\БД\DB\DB\store.db'
 
 def execute_sql_file(filepath, db_path=DB_PATH):
     if not os.path.exists(filepath):
