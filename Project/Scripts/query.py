@@ -11,29 +11,23 @@ def print_table(rows, max_col_width=50):
         return
 
     headers = list(rows[0].keys())
-    # Определяем ширину каждой колонки
     col_widths = {}
     for h in headers:
         width = len(str(h))
-        for row in rows[:100]:  # проверяем первые 100 строк для скорости
+        for row in rows[:100]:
             val = str(row[h]) if row[h] is not None else 'NULL'
             width = max(width, len(val))
         col_widths[h] = min(width, max_col_width)
-
-    # Формируем разделитель
     sep = '+' + '+'.join('-' * (col_widths[h] + 2) for h in headers) + '+'
-    # Заголовок
     header_line = '| ' + ' | '.join(h.ljust(col_widths[h]) for h in headers) + ' |'
     print(sep)
     print(header_line)
     print(sep)
 
-    # Данные
     for row in rows:
         line = '| '
         for h in headers:
             val = str(row[h]) if row[h] is not None else 'NULL'
-            # Числа выравниваем вправо, остальное влево
             if isinstance(row[h], (int, float)):
                 line += val.rjust(col_widths[h]) + ' | '
             else:
