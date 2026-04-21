@@ -1,95 +1,250 @@
--- Должности
-INSERT OR REPLACE INTO position (code, title) VALUES
+PRAGMA foreign_keys = OFF;
+
+-- ------------------------------------------------------------
+-- 0. Полная очистка и сброс автоинкремента
+-- ------------------------------------------------------------
+DELETE FROM payment_doc;
+DELETE FROM order_item;
+DELETE FROM "order";
+DELETE FROM price_list;
+DELETE FROM product;
+DELETE FROM private_person;
+DELETE FROM legal_entity;
+DELETE FROM purchaser;
+DELETE FROM employee_position;
+DELETE FROM employee;
+DELETE FROM account;
+DELETE FROM price_category;
+DELETE FROM position;
+DELETE FROM sqlite_sequence;
+
+-- ------------------------------------------------------------
+-- 1. Вспомогательная таблица чисел
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS temp_numbers;
+CREATE TEMP TABLE temp_numbers AS
+WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt WHERE x < 1000)
+SELECT x AS n FROM cnt;
+
+-- ------------------------------------------------------------
+-- 2. Справочники (position, price_category)
+-- ------------------------------------------------------------
+INSERT INTO position (code, title) VALUES
     ('manager', 'Менеджер'),
     ('merchandiser', 'Товаровед'),
     ('cashier', 'Кассир'),
     ('head', 'Заведующий');
 
--- Категории прайс-листов
-INSERT OR REPLACE INTO price_category (code, name, description) VALUES
+INSERT INTO price_category (code, name, description) VALUES
     ('retail', 'Розничный', 'Для розничных покупателей'),
     ('wholesale', 'Оптовый', 'Для оптовых покупателей'),
     ('professional', 'Профессиональный', 'Для профессиональных клиентов');
 
--- Аккаунты сотрудников
-INSERT OR REPLACE INTO account (id, login, password_hash, email, created_at, status) VALUES
-    (1, 'ivanov', 'hash_123', 'ivanov@store.ru', '2024-01-01 10:00:00', 'active'),
-    (2, 'petrova', 'hash_456', 'petrova@store.ru', '2024-01-02 11:00:00', 'active'),
-    (3, 'sidorov', 'hash_789', 'sidorov@store.ru', '2024-01-03 12:00:00', 'active'),
-    (4, 'kuznecova', 'hash_111', 'kuznecova@store.ru', '2024-01-04 13:00:00', 'active');
+-- ------------------------------------------------------------
+-- 3. Аккаунты: сотрудники (1..20), покупатели (21..70)
+-- ------------------------------------------------------------
+INSERT INTO account (login, password_hash, email, created_at, status)
+SELECT
+    'emp_' || n,
+    'hash_' || n,
+    'emp' || n || '@store.ru',
+    datetime('2021-01-01', '+' || ((n-1)*30) || ' days'),
+    'active'
+FROM temp_numbers n WHERE n BETWEEN 1 AND 20;
 
--- Сотрудники
-INSERT OR REPLACE INTO employee (id, full_name, inn, passport, birth_date, gender, phone) VALUES
-    (1, 'Иванов Иван Иванович', '123456789012', '4512 123456', '1985-05-15', 'м', '+79123456789'),
-    (2, 'Петрова Мария Сергеевна', '234567890123', '4512 234567', '1990-08-22', 'ж', '+79234567890'),
-    (3, 'Сидоров Алексей Петрович', '345678901234', '4512 345678', '1982-03-10', 'м', '+79345678901'),
-    (4, 'Кузнецова Анна Владимировна', '456789012345', '4512 456789', '1978-11-30', 'ж', '+79456789012');
+INSERT INTO account (login, password_hash, email, created_at, status)
+SELECT
+    CASE WHEN (n % 5) = 0 THEN NULL ELSE 'client_' || (20 + n) END,
+    CASE WHEN (n % 5) = 0 THEN NULL ELSE 'hash_' || (20 + n) END,
+    CASE WHEN (n % 5) = 0 THEN NULL ELSE 'client' || (20 + n) || '@mail.ru' END,
+    datetime('2021-02-01', '+' || (n*10) || ' days'),
+    'active'
+FROM temp_numbers n WHERE n BETWEEN 1 AND 50;
 
--- Назначение должностей сотрудникам
-INSERT OR REPLACE INTO employee_position (employee_id, position_id, assignment_date) VALUES
-    (1, 1, '2023-01-15'),  -- Иванов - менеджер
-    (2, 2, '2023-01-20'),  -- Петрова - товаровед
-    (3, 1, '2023-02-01'),  -- Сидоров - менеджер
-    (4, 4, '2023-01-10'),  -- Кузнецова - заведующий
-    (2, 3, '2023-06-01');  -- Петрова - также кассир
+-- ------------------------------------------------------------
+-- 4. Сотрудники (id = account.id для id <=20)
+-- ------------------------------------------------------------
+INSERT INTO employee (id, full_name, inn, passport, birth_date, gender, phone)
+SELECT
+    id,
+    'Сотрудник_' || id || ' Фамилия',
+    printf('%012d', 100000000000 + id),
+    '4512 ' || printf('%06d', 100000 + id),
+    date('1970-01-01', '+' || (id*365) || ' days'),
+    CASE WHEN (id % 2) = 0 THEN 'м' ELSE 'ж' END,
+    '+7916' || printf('%07d', 1000000 + id)
+FROM account WHERE id <= 20;
 
--- Аккаунты покупателей
-INSERT OR REPLACE INTO account (id, login, password_hash, email, created_at, status) VALUES
-    (5, 'tehno_prom', 'hash_tehno', 'tehno@prom.ru', '2024-01-10 14:00:00', 'active'),
-    (6, NULL, NULL, NULL, '2024-01-15 15:00:00', 'active'),
-    (7, 'roznichok', 'hash_rozn', 'roznichok@mail.ru', '2024-01-20 16:00:00', 'active');
+-- ------------------------------------------------------------
+-- 5. Должности сотрудников
+-- ------------------------------------------------------------
+INSERT INTO employee_position (employee_id, position_id, assignment_date)
+SELECT
+    e.id,
+    CASE (e.id % 3)
+        WHEN 0 THEN (SELECT id FROM position WHERE code = 'manager')
+        WHEN 1 THEN (SELECT id FROM position WHERE code = 'merchandiser')
+        ELSE (SELECT id FROM position WHERE code = 'cashier')
+    END,
+    date('2021-01-01')
+FROM employee e;
 
--- Покупатели
-INSERT OR REPLACE INTO purchaser (id, type, price_category_id, manager_id) VALUES
-    (5, 'юр', 2, 1),  -- юрлицо, оптовый прайс, менеджер Иванов
-    (6, 'физ', 1, 3),  -- физлицо, розничный прайс, менеджер Сидоров
-    (7, 'физ', 3, 1);  -- физлицо, проф. прайс, менеджер Иванов
+INSERT INTO employee_position (employee_id, position_id, assignment_date)
+SELECT id, (SELECT id FROM position WHERE code = 'head'), date('2022-01-01')
+FROM employee WHERE id <= 5 ON CONFLICT DO NOTHING;
 
--- Юридическое лицо
-INSERT OR REPLACE INTO legal_entity (id, name, legal_address, phone, bank_details, firm_category) VALUES
-    (5, 'ООО "ТехноПром"', 'г. Москва, ул. Ленина, д. 10', '+74951234567',
-     'р/с 40702810123456789012, БИК 044525225', 'оптовик');
+-- ------------------------------------------------------------
+-- 6. Покупатели 
+-- ------------------------------------------------------------
+INSERT INTO purchaser (id, type, price_category_id, manager_id)
+SELECT
+    id,
+    CASE WHEN (id % 3) = 0 THEN 'юр' ELSE 'физ' END,
+    CASE (id % 3)
+        WHEN 0 THEN (SELECT id FROM price_category WHERE code = 'wholesale')
+        WHEN 1 THEN (SELECT id FROM price_category WHERE code = 'retail')
+        ELSE (SELECT id FROM price_category WHERE code = 'professional')
+    END,
+    1 + ((id - 21) % 20)
+FROM account WHERE id > 20;
 
--- Частные лица
-INSERT OR REPLACE INTO private_person (id, last_name, first_name, middle_name, birth_year, passport_data, address, phone) VALUES
-    (6, 'Смирнов', 'Дмитрий', 'Александрович', 1988, '4510 987654, выдан ОВД г. Москвы',
-     'г. Москва, ул. Цветочная, д. 5, кв. 12', '+79112345678'),
-    (7, 'Васильева', 'Елена', 'Петровна', 1992, '4511 123456, выдан ОВД г. Санкт-Петербурга',
-     'г. Санкт-Петербург, Невский пр., д. 20, кв. 45', '+79223456789');
+-- ------------------------------------------------------------
+-- 7. Юридические и физические лица
+-- ------------------------------------------------------------
+INSERT INTO legal_entity (id, name, legal_address, phone, bank_details, firm_category)
+SELECT p.id, 'ООО "Фирма ' || p.id || '"', 'г. Москва, ул. Примерная, д. ' || (p.id % 100),
+       '+7495' || printf('%07d', 1000000 + p.id),
+       'р/с 40702810' || printf('%010d', p.id) || ', БИК 044525225',
+       CASE (p.id % 3) WHEN 0 THEN 'оптовик' WHEN 1 THEN 'дилер' ELSE 'розница' END
+FROM purchaser p WHERE p.type = 'юр';
 
--- Товары
-INSERT OR REPLACE INTO product (article, name, certificate_number, packaging, manufacturer, stock_quantity, purchase_price, merchandiser_id) VALUES
-    ('TV-001', 'Телевизор Samsung 55"', 'Сертификат 12345', 'шт.', 'Samsung Electronics', 15, 35000.00, 2),
-    ('TV-002', 'Телевизор LG 65"', 'Сертификат 12346', 'шт.', 'LG Electronics', 8, 52000.00, 2),
-    ('PH-001', 'Смартфон Xiaomi 13', 'Сертификат 12347', 'шт.', 'Xiaomi', 25, 28000.00, 2),
-    ('NB-001', 'Ноутбук Asus ROG', 'Сертификат 12348', 'шт.', 'Asus', 12, 85000.00, 2),
-    ('ACC-001', 'Чехол для телефона', NULL, 'шт.', 'Generic', 100, 500.00, 2),
-    ('ACC-002', 'Зарядное устройство', NULL, 'шт.', 'Belkin', 45, 1200.00, 2);
+INSERT INTO private_person (id, last_name, first_name, middle_name, birth_year, passport_data, address, phone)
+SELECT p.id, 'Фамилия_' || p.id, 'Имя_' || p.id, 'Отчество_' || p.id, 1970 + (p.id % 40),
+       '4510 ' || printf('%06d', 500000 + p.id) || ', выдан ОВД',
+       'г. Москва, ул. Жилая, д.' || (p.id % 100),
+       '+7916' || printf('%07d', 2000000 + p.id)
+FROM purchaser p WHERE p.type = 'физ';
 
--- Прайс-листы
-INSERT OR REPLACE INTO price_list (id, date, category_id, employee_id) VALUES
-    (1, '2024-01-01', 1, 4),  -- розничный
-    (2, '2024-01-01', 2, 4),  -- оптовый
-    (3, '2024-01-01', 3, 4),  -- профессиональный
-    (4, '2024-03-01', 1, 4);  -- обновлённый розничный
+-- ------------------------------------------------------------
+-- 8. Товары (50 шт) – автоинкремент
+-- ------------------------------------------------------------
+INSERT INTO product (article, name, certificate_number, packaging, manufacturer, stock_quantity, purchase_price, merchandiser_id)
+SELECT
+    'PRD_' || printf('%04d', 100 + n),
+    'Товар ' || (100 + n),
+    CASE WHEN n % 3 = 0 THEN 'Серт-' || (100 + n) ELSE NULL END,
+    'шт.',
+    CASE (n % 4) WHEN 0 THEN 'Производитель А' WHEN 1 THEN 'Производитель Б' ELSE 'Производитель В' END,
+    10 + (n % 100), 500.00 + (n * 150.0), 2
+FROM temp_numbers n WHERE n BETWEEN 1 AND 50;
 
--- Заказы
-INSERT OR REPLACE INTO "order" (id, issue_date, payment_date, release_date, buyer_id, price_list_id, employee_id) VALUES
-    (1, '2024-02-15 10:30:00', '2024-02-15 16:20:00', '2024-02-16 14:00:00', 5, 2, 1),
-    (2, '2024-02-20 14:15:00', '2024-02-20 15:30:00', '2024-02-21 11:00:00', 6, 1, 3),
-    (3, '2024-03-01 11:45:00', '2024-03-02 10:00:00', '2024-03-03 09:30:00', 7, 3, 1);
+-- ------------------------------------------------------------
+-- 9. Прайс-листы (каждый месяц с 2021-04 по 2026-04, 3 категории)
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS temp_months;
+CREATE TEMP TABLE temp_months AS
+WITH RECURSIVE months(m) AS (SELECT 0 UNION ALL SELECT m+1 FROM months WHERE m < 60)
+SELECT m FROM months;
 
--- Состав заказов
-INSERT OR REPLACE INTO order_item (order_id, product_id, quantity, price, discount, is_missing) VALUES
-    (1, 1, 2, 35000.00, 5.00, 0),
-    (1, 4, 1, 85000.00, 10.00, 0),
-    (2, 3, 1, 28000.00, 0, 0),
-    (2, 5, 2, 500.00, 0, 1),
-    (3, 2, 1, 52000.00, 0, 0),
-    (3, 6, 3, 1200.00, 15.00, 0);
+INSERT INTO price_list (date, category_id, employee_id)
+SELECT date('2021-04-01', '+' || m || ' months'), cat, 4
+FROM temp_months CROSS JOIN (SELECT id AS cat FROM price_category) cats
+WHERE m < 60;
 
--- Платежные документы
-INSERT OR REPLACE INTO payment_doc (id, type, payment_time, amount, order_id) VALUES
-    (1, 'безналичный', '2024-02-15 16:20:00', 146500.00, 1),
-    (2, 'наличный', '2024-02-20 15:30:00', 28000.00, 2),
-    (3, 'наличный', '2024-03-02 10:00:00', 55060.00, 3);
+-- ------------------------------------------------------------
+-- 10. Заказы (300 шт) – случайные даты за 5 лет, price_list_id обязательно заполнен
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS temp_buyer_ids;
+DROP TABLE IF EXISTS temp_emp_ids;
+CREATE TEMP TABLE temp_buyer_ids AS SELECT id FROM purchaser;
+CREATE TEMP TABLE temp_emp_ids AS SELECT id FROM employee 
+    WHERE id IN (SELECT employee_id FROM employee_position WHERE position_id = (SELECT id FROM position WHERE code = 'manager'));
+
+-- 1826 дней = 5 лет (с 2021-04-21 по 2026-04-21)
+INSERT INTO "order" (issue_date, payment_date, release_date, buyer_id, price_list_id, employee_id)
+SELECT
+    datetime('2021-04-21', '+' || (abs(random()) % 1826) || ' days', '+' || (abs(random()) % 86400) || ' seconds'),
+    CASE WHEN (abs(random()) % 100) < 75 
+         THEN datetime('2021-04-21', '+' || (abs(random()) % 1826) || ' days', '+' || (abs(random()) % 86400) || ' seconds')
+         ELSE NULL END,
+    CASE WHEN (abs(random()) % 100) < 80 
+         THEN datetime('2021-04-21', '+' || (abs(random()) % 1826) || ' days', '+' || (abs(random()) % 86400) || ' seconds')
+         ELSE NULL END,
+    (SELECT id FROM temp_buyer_ids ORDER BY random() LIMIT 1),
+    (SELECT id FROM price_list ORDER BY random() LIMIT 1),
+    (SELECT id FROM temp_emp_ids ORDER BY random() LIMIT 1)
+FROM temp_numbers n WHERE n.n BETWEEN 1 AND 300;
+
+-- ------------------------------------------------------------
+-- 11. Позиции заказов (уникальные пары, ~900 записей)
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS temp_product_ids;
+CREATE TEMP TABLE temp_product_ids AS SELECT id FROM product;
+
+INSERT OR IGNORE INTO order_item (order_id, product_id, quantity, price, discount, is_missing)
+WITH order_items_gen AS (
+    SELECT o.id AS order_id, p.id AS product_id,
+           ROW_NUMBER() OVER (PARTITION BY o.id ORDER BY random()) AS rn
+    FROM "order" o CROSS JOIN temp_product_ids p
+    WHERE (abs(random()) % 100) < 90
+)
+SELECT order_id, product_id,
+       1 + (abs(random()) % 10) AS quantity,
+       500.00 + (abs(random()) % 100000) AS price,
+       CASE WHEN (abs(random()) % 100) < 25 THEN (abs(random()) % 30) ELSE 0 END AS discount,
+       CASE WHEN (abs(random()) % 100) < 5 THEN 1 ELSE 0 END AS is_missing
+FROM order_items_gen
+WHERE rn <= (1 + (abs(random()) % 5))
+LIMIT 900;
+
+-- ------------------------------------------------------------
+-- 12. Платежи (~70% от оплаченных заказов)
+-- ------------------------------------------------------------
+INSERT INTO payment_doc (type, payment_time, amount, order_id)
+SELECT
+    CASE WHEN (abs(random()) % 2) = 0 THEN 'наличный' ELSE 'безналичный' END,
+    o.payment_date,
+    ROUND(SUM(oi.quantity * oi.price * (100 - oi.discount) / 100), 2),
+    o.id
+FROM "order" o
+JOIN order_item oi ON oi.order_id = o.id
+WHERE o.payment_date IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM payment_doc WHERE order_id = o.id)
+GROUP BY o.id
+HAVING (abs(random()) % 100) < 70
+LIMIT 200;
+
+-- ------------------------------------------------------------
+-- 13. Создание индексов для ускорения запросов (для EXPLAIN в запросах №4 и №5)
+-- ------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_order_issue_date ON "order"(issue_date);
+CREATE INDEX IF NOT EXISTS idx_order_employee_date ON "order"(employee_id, issue_date);
+CREATE INDEX IF NOT EXISTS idx_order_price_list ON "order"(price_list_id);
+CREATE INDEX IF NOT EXISTS idx_order_item_product ON order_item(product_id);
+CREATE INDEX IF NOT EXISTS idx_order_item_order ON order_item(order_id);
+CREATE INDEX IF NOT EXISTS idx_employee_position ON employee_position(employee_id, position_id);
+CREATE INDEX IF NOT EXISTS idx_purchaser_manager ON purchaser(manager_id);
+CREATE INDEX IF NOT EXISTS idx_product_merchandiser ON product(merchandiser_id);
+
+-- ------------------------------------------------------------
+-- 14. Очистка временных таблиц
+-- ------------------------------------------------------------
+DROP TABLE IF EXISTS temp_numbers;
+DROP TABLE IF EXISTS temp_months;
+DROP TABLE IF EXISTS temp_buyer_ids;
+DROP TABLE IF EXISTS temp_emp_ids;
+DROP TABLE IF EXISTS temp_product_ids;
+
+PRAGMA foreign_keys = ON;
+
+-- ------------------------------------------------------------
+-- 15. Статистика
+-- ------------------------------------------------------------
+SELECT 'Данные за 2021-2026 успешно загружены. Индексы созданы.' AS status,
+       (SELECT COUNT(*) FROM employee) AS employees,
+       (SELECT COUNT(*) FROM purchaser) AS purchasers,
+       (SELECT COUNT(*) FROM product) AS products,
+       (SELECT COUNT(*) FROM price_list) AS price_lists,
+       (SELECT COUNT(*) FROM "order") AS orders,
+       (SELECT COUNT(*) FROM order_item) AS order_items,
+       (SELECT COUNT(*) FROM payment_doc) AS payments;
