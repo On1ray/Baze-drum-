@@ -143,3 +143,13 @@ CREATE TABLE IF NOT EXISTS payment_doc (
     order_id INTEGER NOT NULL UNIQUE,
     FOREIGN KEY (order_id) REFERENCES "order"(id) ON DELETE CASCADE
 );
+
+-- Создание таблицы при работе триггера
+CREATE TABLE IF NOT EXISTS price_list_product (
+    price_list_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
+    PRIMARY KEY (price_list_id, product_id),
+    FOREIGN KEY (price_list_id) REFERENCES price_list(id),
+    FOREIGN KEY (product_id) REFERENCES product(id)
+);

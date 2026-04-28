@@ -4,7 +4,7 @@
 -- Год: 2025 (можно изменить)
 -- ============================================================
 
-EXPLAIN QUERY PLAN
+--EXPLAIN QUERY PLAN
 WITH RECURSIVE
 -- Генерируем 12 месяцев
 months(month_num, month_name) AS (
