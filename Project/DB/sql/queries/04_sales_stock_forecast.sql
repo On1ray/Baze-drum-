@@ -1,8 +1,8 @@
---EXPLAIN QUERY PLAN
+EXPLAIN QUERY PLAN
 WITH params AS (
     --нужные даты в формате 'YYYY-MM-DD'
     SELECT 
-        DATE('now', '-180 days') AS start_date,
+        DATE('now', '-720 days') AS start_date,
         DATE('now') AS end_date
 ),
 daily_sales AS (
