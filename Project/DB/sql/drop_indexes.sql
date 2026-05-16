@@ -1,0 +1,14 @@
+DROP INDEX IF EXISTS idx_order_issue_date;
+DROP INDEX IF EXISTS idx_order_employee_date;
+DROP INDEX IF EXISTS idx_order_price_list;
+DROP INDEX IF EXISTS idx_order_item_product;
+DROP INDEX IF EXISTS idx_order_item_order;
+DROP INDEX IF EXISTS idx_employee_position;
+DROP INDEX IF EXISTS idx_purchaser_manager;
+DROP INDEX IF EXISTS idx_product_merchandiser;
+DROP INDEX IF EXISTS idx_order_item_product_order;
+DROP INDEX IF EXISTS idx_order_recent;
+DROP INDEX IF EXISTS idx_order_item_covering;
+DROP INDEX IF EXISTS idx_order_2025;
+DROP INDEX IF EXISTS idx_order_item_sales;
+DROP INDEX IF EXISTS idx_employee_position_pos;

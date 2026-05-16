@@ -23,7 +23,7 @@ DELETE FROM sqlite_sequence;
 -- ------------------------------------------------------------
 DROP TABLE IF EXISTS temp_numbers;
 CREATE TEMP TABLE temp_numbers AS
-WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt WHERE x < 1000)
+WITH RECURSIVE cnt(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM cnt WHERE x < 5000)
 SELECT x AS n FROM cnt;
 
 -- ------------------------------------------------------------
@@ -136,7 +136,7 @@ SELECT
     'шт.',
     CASE (n % 4) WHEN 0 THEN 'Производитель А' WHEN 1 THEN 'Производитель Б' ELSE 'Производитель В' END,
     10 + (n % 100), 500.00 + (n * 150.0), 2
-FROM temp_numbers n WHERE n BETWEEN 1 AND 50;
+FROM temp_numbers n WHERE n BETWEEN 1 AND 500;
 
 -- ------------------------------------------------------------
 -- 9. Прайс-листы (каждый месяц с 2021-04 по 2026-04, 3 категории)
@@ -173,7 +173,7 @@ SELECT
     (SELECT id FROM temp_buyer_ids ORDER BY random() LIMIT 1),
     (SELECT id FROM price_list ORDER BY random() LIMIT 1),
     (SELECT id FROM temp_emp_ids ORDER BY random() LIMIT 1)
-FROM temp_numbers n WHERE n.n BETWEEN 1 AND 300;
+FROM temp_numbers n WHERE n.n BETWEEN 1 AND 4000;
 
 -- ------------------------------------------------------------
 -- 11. Позиции заказов (уникальные пары, ~900 записей)
@@ -195,7 +195,7 @@ SELECT order_id, product_id,
        CASE WHEN (abs(random()) % 100) < 5 THEN 1 ELSE 0 END AS is_missing
 FROM order_items_gen
 WHERE rn <= (1 + (abs(random()) % 5))
-LIMIT 900;
+LIMIT 16000;
 
 -- ------------------------------------------------------------
 -- 12. Платежи (~70% от оплаченных заказов)
@@ -212,7 +212,7 @@ WHERE o.payment_date IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM payment_doc WHERE order_id = o.id)
 GROUP BY o.id
 HAVING (abs(random()) % 100) < 70
-LIMIT 200;
+LIMIT 2800;
 
 -- ------------------------------------------------------------
 -- 13. Создание индексов для ускорения запросов (для EXPLAIN в запросах №4 и №5)
